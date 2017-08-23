@@ -131,7 +131,7 @@ class VehicleFinder:
             for y_window in range(hogs[0].shape[0]):
                 hog_features = []
                 for ch_hog in hogs:
-                    hog_features.extend(ch_hog[y_window:y_window+2, x_window:x_window+2].ravel())
+                    hog_features.append(ch_hog[y_window, x_window, ...].ravel()).ravel()
 
                 xleft = x_window * self.hog_pix_per_cell
                 ytop = y_window * self.hog_pix_per_cell
