@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from skimage.feature import hog
+from scipy.ndimage.measurements import label
 
 def bin_spatial(img, size):
     features = cv2.resize(img, size).ravel()
@@ -8,15 +9,15 @@ def bin_spatial(img, size):
 
 
 def color_hist(img, nbins, channel, bins_range):
-    if channel == 'all':
-        chan1 = np.histogram(img[:, :, 0], bins=nbins, range=bins_range)
-        chan2 = np.histogram(img[:, :, 1], bins=nbins, range=bins_range)
-        chan3 = np.histogram(img[:, :, 2], bins=nbins, range=bins_range)
-        hist_features = np.concatenate((chan1[0], chan2[0], chan3[0]))
-    elif type(channel) == int and 0 < channel < img.shape[2]:
-        hist_features = np.histogram(img[:, :, channel], bins=nbins)[0]
-    else:
-        raise Exception('Incorrect channel number')
+    #if channel == 'all':
+    chan1 = np.histogram(img[:, :, 0], bins=nbins, range=bins_range)
+    chan2 = np.histogram(img[:, :, 1], bins=nbins, range=bins_range)
+    chan3 = np.histogram(img[:, :, 2], bins=nbins, range=bins_range)
+    hist_features = np.concatenate((chan1[0], chan2[0], chan3[0]))
+    #elif type(channel) == int and 0 <= channel < img.shape[2]:
+    #    hist_features = np.histogram(img[:, :, channel], bins=nbins)[0]
+    #else:
+    #    raise Exception('Incorrect channel number')
     return hist_features
 
 
@@ -70,3 +71,45 @@ def cvt_color(img, color_space):
     else:
         raise Exception('Unsupported color space.')
     return feature_img
+
+
+def cal_heatmap(heatmap, box_list):
+    """
+    apply heatmap
+    :param heatmap: img to draw heatmap on (zeros) 
+    :param box_list: list of box coordinates ((x1,y1), (x2,y2))
+    :return: heatmap img
+    """
+    if len(box_list) == 0:
+        return heatmap
+    for box in box_list:
+        heatmap[box[0][1]:box[1][1], box[0][0]:box[1][0]] += 1
+    heatmap = np.clip(heatmap, 0, 255)
+    return heatmap
+
+
+def apply_threshold(img, threshold):
+    """
+    :param img: one channel 2d img 
+    :param threshold: 
+    :return: 
+    """
+    out = np.copy(img)
+    out[out <= threshold] = 0
+    return out
+
+def labeled_heat_boxes(heatmap):
+    """    
+    :param heatmap: 
+    :return: labeled boxes
+    """
+    labels = label(heatmap)
+    box = []
+    for car_number in range(1, labels[1]+1):
+        nonzero = (labels[0] == car_number).nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+        box.append(((np.min(nonzerox), np.min(nonzeroy)), (np.max(nonzerox), np.max(nonzeroy))))
+    return box
+
+
