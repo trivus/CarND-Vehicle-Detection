@@ -22,7 +22,7 @@ class VehicleFinder:
         self.clf = None
         self.scaler = None
         self.feature_vector_size = None
-        self.heatmap = deque(maxlen=10)
+        self.heatmap = deque(maxlen=5)
 
     def feature_extraction(self, img):
         """
@@ -36,14 +36,14 @@ class VehicleFinder:
             feature_img = np.copy(img)
 
         spatial_features = bin_spatial(feature_img, self.spatial_size)
-        hist_features = color_hist(feature_img, self.hist_nbins, self.channel, self.hist_bins_range)
+        hist_features = color_hist(feature_img, self.hist_nbins, hist_range=self.hist_bins_range)
 
-        # feature_img = feature_img.astype(np.float32) / 255
         if self.channel == 'all':
             hog_features = []
-            for i_channel in range(feature_img.shape[2]):
-                hog_features.append(get_hog(feature_img[:,:,i_channel], self.hog_orient, self.hog_pix_per_cell,
-                                            self.hog_cell_per_block))
+            for i_channel in range(3):
+                hog_channel = get_hog(feature_img[..., i_channel], self.hog_orient, self.hog_pix_per_cell,
+                                            self.hog_cell_per_block)
+                hog_features.append(hog_channel)
             hog_features = np.ravel(hog_features)
         else:
             hog_features = get_hog(feature_img[..., self.channel], self.hog_orient, self.hog_pix_per_cell,
@@ -62,8 +62,8 @@ class VehicleFinder:
         features = []
         for path in paths:
             img = mpimg.imread(path)
-            if path.split('.')[-1] == 'png':
-                img = img * 255
+            if path.split('.')[-1] != 'png':
+                img = img.astype(np.float) / 255
             features.append(self.feature_extraction(img))
         return features
 
@@ -74,6 +74,7 @@ class VehicleFinder:
         X = np.vstack((car_features, notcar_features))
         y = np.hstack((np.ones(len(car_features)), np.zeros(len(notcar_features))))
         self.feature_vector_size = X.shape[-1]
+        #import pdb;pdb.set_trace()
         X_scaler = StandardScaler().fit(X)
         X = X_scaler.transform(X)
 
@@ -105,7 +106,9 @@ class VehicleFinder:
         :return: positive boxes
         """
         boxes = []
+        img = img.astype(np.float32) / 255
         img_search = img[ystart:ystop, ...]
+
         if self.color_space != 'RGB':
             feature_img = cvt_color(img_search, self.color_space)
         else:
@@ -117,7 +120,7 @@ class VehicleFinder:
 
         if self.channel == 'all':
             hogs = []
-            for i_channel in range(feature_img.shape[2]):
+            for i_channel in range(3):
                 hogs.append(get_hog(feature_img[:,:,i_channel], self.hog_orient, self.hog_pix_per_cell,
                                             self.hog_cell_per_block, ravel=False))
         else:
@@ -129,8 +132,16 @@ class VehicleFinder:
         nblocks_per_window = (window_size // self.hog_pix_per_cell) - self.hog_cell_per_block + 1
         cell_per_step = 2
 
-        for x_window in range(0, hogs[0].shape[1], cell_per_step):
-            for y_window in range(0, hogs[0].shape[0], cell_per_step):
+        nxblocks = (feature_img[...,0].shape[1] // self.hog_pix_per_cell) - self.hog_cell_per_block + 1
+        nyblocks = (feature_img[..., 0].shape[0] // self.hog_pix_per_cell) - self.hog_cell_per_block + 1
+        nxsteps = (nxblocks - nblocks_per_window) // cell_per_step
+        nysteps = (nyblocks - nblocks_per_window) // cell_per_step
+
+        for xb in range(nxsteps):#range(0, hogs[0].shape[1], cell_per_step):
+            for yb in range(nysteps):#range(0, hogs[0].shape[0], cell_per_step):
+                x_window = xb*cell_per_step
+                y_window = yb*cell_per_step
+
                 hog_features = []
                 for ch_hog in hogs:
                     hog_features.extend(ch_hog[y_window:y_window+nblocks_per_window,
@@ -144,10 +155,10 @@ class VehicleFinder:
 
                 # get color features
                 spatial_features = bin_spatial(subimg, self.spatial_size)
-                hist_feature = color_hist(subimg, self.hist_nbins, self.channel, self.hist_bins_range)
+                hist_feature = color_hist(subimg, self.hist_nbins, hist_range=self.hist_bins_range)
 
-                #import pdb; pdb.set_trace()
-                test_features = self.scaler.transform(np.hstack((spatial_features, hist_feature, hog_features)).reshape(1,-1))
+                test_features = self.scaler.transform(
+                    np.hstack((spatial_features, hist_feature, hog_features)).reshape(1,-1))
                 test_prediction = self.clf.predict(test_features)
 
                 if test_prediction == 1:
@@ -162,20 +173,17 @@ class VehicleFinder:
     def video_pipeline(self, image):
         # get heat map
         heatmap = np.zeros_like(image[..., 0])
-        boxes1 = self.find_cars_from_img(image, 350, 600, .5)
-        boxes2 = self.find_cars_from_img(image, 350, 550, .7)
+        boxes1 = self.find_cars_from_img(image, 400, 600, .7)
+        boxes2 = self.find_cars_from_img(image, 380, 480, 1.1)
         #boxes3 = self.find_cars_from_img(image, 350, 500, 1)
         boxes1.extend(boxes2)
         #boxes1.extend(boxes3)
         heatmap = cal_heatmap(heatmap, boxes1)
-
         self.heatmap.append(heatmap)
-
         summed_heatmap = np.zeros_like(heatmap).astype(np.float)
         for hmap in self.heatmap:
             summed_heatmap += hmap
-        summed_heatmap = np.dot(summed_heatmap, 1/len(self.heatmap))
-        summed_heatmap = apply_threshold(summed_heatmap, 5)
+        summed_heatmap = apply_threshold(summed_heatmap, 3)
         labeled_boxes = labeled_heat_boxes(summed_heatmap)
 
         out = np.copy(image)
