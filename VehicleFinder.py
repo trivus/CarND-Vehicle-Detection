@@ -10,7 +10,7 @@ from utility import *
 class VehicleFinder:
 
     def __init__(self, color_space='RGB', spatial_size=(32,32), hist_nbins=32, channel='all', hist_bins_range=(0,256)
-                 , hog_orient=9, hog_pix_per_cell=8, hog_cell_per_block=8):
+                 , hog_orient=9, hog_pix_per_cell=8, hog_cell_per_block=8, heat_thresh=5, outfunc=None):
         self.color_space = color_space
         self.spatial_size = spatial_size
         self.hist_nbins = hist_nbins
@@ -23,6 +23,8 @@ class VehicleFinder:
         self.scaler = None
         self.feature_vector_size = None
         self.heatmap = deque(maxlen=5)
+        self.heat_thresh = heat_thresh
+        self.outfunc = outfunc
 
     def feature_extraction(self, img):
         """
@@ -183,9 +185,12 @@ class VehicleFinder:
         summed_heatmap = np.zeros_like(heatmap).astype(np.float)
         for hmap in self.heatmap:
             summed_heatmap += hmap
-        summed_heatmap = apply_threshold(summed_heatmap, 3)
+        summed_heatmap = apply_threshold(summed_heatmap, self.heat_thresh)
         labeled_boxes = labeled_heat_boxes(summed_heatmap)
 
-        out = np.copy(image)
+        if self.outfunc is None:
+            out = np.copy(image)
+        else:
+            out = self.outfunc(image)
         out = draw_boxes(out, labeled_boxes)
         return out
