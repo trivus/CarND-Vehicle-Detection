@@ -11,9 +11,9 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 [image1]: ./output_images/train_imgs_cars.png
-[image2]: ./output_images/train_imgs_notcars.jpg
-[image3]: ./output_images/car_hog.jpg
-[image4]: ./output_images/notcar_hog.jpg
+[image2]: ./output_images/train_imgs_notcars.png
+[image3]: ./output_images/car_hog.png
+[image4]: ./output_images/notcar_hog.png
 [image5]: ./output_images/detector_heatmap.png
 
 
@@ -39,27 +39,27 @@ Here is an example using the `YCrCb` color space and HOG parameters of `orientat
 ![alt text][image3]
 ![alt text][image4]
 
-####2. Explain how you settled on your final choice of HOG parameters.
+#### 2. Explain how you settled on your final choice of HOG parameters.
 
 I tried various combinations of parameters that produced best results were: `orientation=9, pixels_per_cell=8 and cell_per_block=2`, with all three channels.  
 Using less channels made the detector faster, but at cost of accuracy.  
 
-####3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
+#### 3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
 Train pipeline can be found at line 72 to 99 in `VehicleFinder.py`. I used template matching, color histogram and HOG features.  
 The training data was shuffled and divided into training/validation set using sklearn library. The feature values were normalized using `StandardScaler` from sklearn.  
 The accuracy on the validation set was .9904 and feature vector size was 6156.  
 
-###Sliding Window Search
+### Sliding Window Search
 
-####1. Describe how (and identify where in your code) you implemented a sliding window search.  How did you decide what scales to search and how much to overlap windows?
+#### 1. Describe how (and identify where in your code) you implemented a sliding window search.  How did you decide what scales to search and how much to overlap windows?
 
 I used HOG subsampling technique, which can be found at line 101 to 173 in `VehicleFinder.py`.  
 As cars further away will be displayed smaller at upper portion of the image, I used two scales of windows.  
 Bigger window on bottom portion of the image (y-coordination 400 to 600) and smaller window on upper portion of the image (380 to 480).  
 Exact scales were tuned by visual inspection.  
 
-####2. Show some examples of test images to demonstrate how your pipeline is working.  What did you do to optimize the performance of your classifier?
+#### 2. Show some examples of test images to demonstrate how your pipeline is working.  What did you do to optimize the performance of your classifier?
 
 I tested several parameters. The parameters that produced the best result were:  
 {color_space='YCrCb', spatial_size=(16,16), hist_nbins=32, hist_bins_range=(0,1.0),  
