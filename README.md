@@ -46,15 +46,17 @@ Using less channels made the detector faster, but at cost of accuracy.
 
 #### 3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
-Train pipeline can be found at line 72 to 99 in `VehicleFinder.py`. I used template matching, color histogram and HOG features.  
+Train pipeline can be found at line 75 to 109 in `VehicleFinder.py`. I used template matching, color histogram and HOG features.  
 The training data was shuffled and divided into training/validation set using sklearn library. The feature values were normalized using `StandardScaler` from sklearn.  
 The accuracy on the validation set was .9904 and feature vector size was 6156.  
+After validating, I trained the classifier with all the data. The accuracy on the train data was 100%.  
+The Linear Support Vector Classifier was used as classifier. Given that I had 6156 feature size and only 8000+ samples for each class, LSVC seemed to be the best bet. I would have tried more sophisticatged classifiers such as CNN or non linear SVMs if the accuracy was low, but I think .99+ accuracy is enough for now.  
 
 ### Sliding Window Search
 
 #### 1. Describe how (and identify where in your code) you implemented a sliding window search.  How did you decide what scales to search and how much to overlap windows?
 
-I used HOG subsampling technique, which can be found at line 101 to 173 in `VehicleFinder.py`.  
+I used HOG subsampling technique, which can be found at line 111 to 187 in `VehicleFinder.py`.  
 As cars further away will be displayed smaller at upper portion of the image, I used two scales of windows.  
 Bigger window on bottom portion of the image (y-coordination 400 to 600) and smaller window on upper portion of the image (380 to 480).  
 Exact scales were tuned by visual inspection.  
@@ -70,13 +72,13 @@ hog_orient=9, hog_pix_per_cell=8, hog_cell_per_block=2, channel='all', heat_thre
 
 ### Video Implementation
 
-#### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
-Here's a [link to my video result](https://youtu.be/cgmf2Wnv6PU)
+#### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the tzime with minimal false positives.)
+Here's a [link to my video result](https://youtu.be/0AvJnNm_gb0)
 
 
 #### 2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
 
-I recorded the positions of positive detections in each frame of the video.  From the positive detections I created a heatmap and then thresholded that map to identify vehicle positions.  I then used `scipy.ndimage.measurements.label()` to identify individual blobs in the heatmap.  I then assumed each blob corresponded to a vehicle.  I constructed bounding boxes to cover the area of each blob detected. The code can be found at line 175 to 196 in `VehicleFinder.py`.  
+I recorded the positions of positive detections in each frame of the video.  From the positive detections I created a heatmap and then thresholded that map to identify vehicle positions.  I then used `scipy.ndimage.measurements.label()` to identify individual blobs in the heatmap.  I then assumed each blob corresponded to a vehicle.  I constructed bounding boxes to cover the area of each blob detected. The code can be found at line 189 to 218 in `VehicleFinder.py`.  
 
 
 

@@ -96,6 +96,7 @@ def apply_threshold(img, threshold):
     """
     out = np.copy(img)
     out[out <= threshold] = 0
+    out[out > threshold] = 1
     return out
 
 def labeled_heat_boxes(heatmap):

@@ -5,6 +5,8 @@ import time
 import matplotlib.image as mpimg
 from collections import deque
 from utility import *
+from sklearn.utils import shuffle
+from sklearn.metrics import confusion_matrix
 
 
 class VehicleFinder:
@@ -25,6 +27,7 @@ class VehicleFinder:
         self.heatmap = deque(maxlen=5)
         self.heat_thresh = heat_thresh
         self.outfunc = outfunc
+        self.frame_count = 0
 
     def feature_extraction(self, img):
         """
@@ -95,10 +98,17 @@ class VehicleFinder:
         t2 = time.time()
         print(round(t2 - t, 5), 'sec to predict {} samples'.format(n_predict))
         print('feature vector size: ', self.feature_vector_size)
+
+        # train using whole dataset
+        X, y = shuffle(X, y)
+        clf.fit(X, y)
+        y_pred = clf.predict(X)
+        print(confusion_matrix(y, y_pred))
+
         self.scaler = X_scaler
         self.clf = clf
 
-    def find_cars_from_img(self, img, ystart, ystop, scale):
+    def find_cars_from_img(self, img, ystart, ystop,  scale, xstart=None, xstop=None, cell_per_step=2):
         """
         
         :param img: RGB image to find cars from 
@@ -109,7 +119,11 @@ class VehicleFinder:
         """
         boxes = []
         img = img.astype(np.float32) / 255
-        img_search = img[ystart:ystop, ...]
+        if xstart is None:
+            xstart = 0
+        if xstop is None:
+            xstop = img.shape[1]
+        img_search = img[ystart:ystop, xstart:xstop, :]
 
         if self.color_space != 'RGB':
             feature_img = cvt_color(img_search, self.color_space)
@@ -132,7 +146,7 @@ class VehicleFinder:
         # size of train image
         window_size = 64
         nblocks_per_window = (window_size // self.hog_pix_per_cell) - self.hog_cell_per_block + 1
-        cell_per_step = 2
+        cell_per_step = cell_per_step
 
         nxblocks = (feature_img[...,0].shape[1] // self.hog_pix_per_cell) - self.hog_cell_per_block + 1
         nyblocks = (feature_img[..., 0].shape[0] // self.hog_pix_per_cell) - self.hog_cell_per_block + 1
@@ -168,29 +182,37 @@ class VehicleFinder:
                     box_top = np.int(ytop / scale)
                     win_size = np.int(window_size / scale)
 
-                    boxes.append(((box_left, box_top+ystart), (box_left+win_size, box_top+ystart+win_size)))
+                    boxes.append(((box_left + xstart, box_top+ystart), (box_left+xstart+win_size, box_top+ystart+win_size)))
 
         return boxes
 
     def video_pipeline(self, image):
-        # get heat map
+        # skip frames
         heatmap = np.zeros_like(image[..., 0])
-        boxes1 = self.find_cars_from_img(image, 400, 600, .7)
-        boxes2 = self.find_cars_from_img(image, 380, 480, 1.1)
-        #boxes3 = self.find_cars_from_img(image, 350, 500, 1)
-        boxes1.extend(boxes2)
-        #boxes1.extend(boxes3)
-        heatmap = cal_heatmap(heatmap, boxes1)
-        self.heatmap.append(heatmap)
+        if self.frame_count % 3 == 0:
+            # get heat map
+            boxes1 = self.find_cars_from_img(image, 400, 600, .7)
+            boxes2 = self.find_cars_from_img(image, 380, 480, 1.3, xstart=300, xstop=1100, cell_per_step=2)
+            #boxes3 = self.find_cars_from_img(image, 350, 500, 1)
+            boxes1.extend(boxes2)
+            #boxes1.extend(boxes3)
+            heatmap = apply_threshold(cal_heatmap(heatmap, boxes1), self.heat_thresh)
+            self.heatmap.append(heatmap)
+
         summed_heatmap = np.zeros_like(heatmap).astype(np.float)
         for hmap in self.heatmap:
             summed_heatmap += hmap
-        summed_heatmap = apply_threshold(summed_heatmap, self.heat_thresh)
-        labeled_boxes = labeled_heat_boxes(summed_heatmap)
+        thresh_summed_heatmap = apply_threshold(summed_heatmap, 1)
+        labeled_boxes = labeled_heat_boxes(thresh_summed_heatmap)
 
         if self.outfunc is None:
             out = np.copy(image)
         else:
             out = self.outfunc(image)
         out = draw_boxes(out, labeled_boxes)
+        # heatmap debug image
+        heatmap_debug = np.clip((summed_heatmap * 50), 0, 255).astype(np.uint8)
+        out[-240:, 960:, :] = cv2.resize(cv2.cvtColor(heatmap_debug, cv2.COLOR_GRAY2RGB), (320, 240))
+        self.frame_count += 1
+
         return out
