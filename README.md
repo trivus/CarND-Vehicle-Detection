@@ -49,8 +49,8 @@ Using less channels made the detector faster, but at cost of accuracy.
 Train pipeline can be found at line 75 to 109 in `VehicleFinder.py`. I used template matching, color histogram and HOG features.  
 The training data was shuffled and divided into training/validation set using sklearn library. The feature values were normalized using `StandardScaler` from sklearn.  
 The accuracy on the validation set was .9904 and feature vector size was 6156.  
-After validating, I trained the classifier with all the data. The accuracy on the train data was 100%.  
-The Linear Support Vector Classifier was used as classifier. Given that I had 6156 feature size and only 8000+ samples for each class, LSVC seemed to be the best bet. I would have tried more sophisticatged classifiers such as CNN or non linear SVMs if the accuracy was low, but I think .99+ accuracy is enough for now.  
+After validating, I trained the classifier with all the data. The accuracy on the train data was 100% (maybe sign of overfitting).  
+The Linear Support Vector Classifier was used as classifier. Given that I had 6156 feature size and only 8000+ samples for each class, LSVC seemed to be the best bet. I would have tried more sophisticatged classifiers such as CNN or non linear SVMs if the accuracy was low, but I think .99+ accuracy is enough for now. For actual use, however, it will be wise to add more data.  
 
 ### Sliding Window Search
 
